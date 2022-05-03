@@ -86,8 +86,25 @@ app.post('/transactions', async (req, res) => {
             description,
             type,
             user: new ObjectId(userid),
+            date: new Date().toLocaleDateString('pt-br', {
+                month: '2-digit',
+                day: '2-digit',
+            }),
         });
         return res.status(200).send('Transaction created');
+    } catch (error) {
+        return res.status(500).send(error);
+    }
+});
+
+app.get('/transactions', async (req, res) => {
+    const { userid } = req.headers;
+    try {
+        const transactions = await db
+            .collection('transactions')
+            .find({ user: new ObjectId(userid) })
+            .toArray();
+        return res.status(200).send(transactions);
     } catch (error) {
         return res.status(500).send(error);
     }

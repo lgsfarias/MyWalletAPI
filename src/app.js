@@ -7,6 +7,7 @@ import express, { json } from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import bcrypt from 'bcrypt';
+
 dotenv.config();
 
 const app = express();
@@ -82,9 +83,7 @@ app.post('/transactions', async (req, res) => {
             return res.status(400).send('User does not exist');
         }
         await db.collection('transactions').insertOne({
-            amount,
-            description,
-            type,
+            ...value,
             user: new ObjectId(userid),
             date: new Date().toLocaleDateString('pt-br', {
                 month: '2-digit',
@@ -107,6 +106,49 @@ app.get('/transactions', async (req, res) => {
         return res.status(200).send(transactions);
     } catch (error) {
         return res.status(500).send(error);
+    }
+});
+
+app.put('/transactions/:id', async (req, res) => {
+    const { id } = req.params;
+    const { amount, description, type } = req.body;
+    const { userid } = req.headers;
+
+    const { value, error } = transactionSchema.validate({
+        amount,
+        description,
+        type,
+    });
+    if (error) {
+        return res.status(400).send(error.details.map((err) => err.message));
+    }
+    try {
+        const user = await db
+            .collection('users')
+            .findOne({ _id: new ObjectId(userid) });
+        if (!user) {
+            return res.status(400).send('User does not exist');
+        }
+
+        const transaction = await db
+            .collection('transactions')
+            .findOne({ _id: new ObjectId(id), user: new ObjectId(userid) });
+        if (!transaction) {
+            return res.status(400).send('Transaction does not exist');
+        }
+
+        await db.collection('transactions').updateOne(
+            { _id: new ObjectId(id) },
+            {
+                $set: {
+                    ...value,
+                },
+            }
+        );
+        return res.status(200).send('Transaction updated');
+    } catch (error) {
+        return res.status(500).send(error);
+        console.log(error);
     }
 });
 

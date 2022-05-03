@@ -7,6 +7,7 @@ import express, { json } from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import bcrypt from 'bcrypt';
+import { v4 as uuid } from 'uuid';
 
 dotenv.config();
 
@@ -53,8 +54,14 @@ app.post('/login', async (req, res) => {
     }
     try {
         const user = await db.collection('users').findOne({ email });
+
         if (user && bcrypt.compareSync(password, user.password)) {
-            return res.sendStatus(200);
+            const token = uuid();
+            await db.collection('sessions').insertOne({
+                userId: user._id,
+                token,
+            });
+            return res.status(200).send(token);
         } else {
             return res.status(401).send('Invalid email or password');
         }
@@ -63,9 +70,36 @@ app.post('/login', async (req, res) => {
     }
 });
 
+app.post('/logout', async (req, res) => {
+    const { token } = req.body;
+    try {
+        await db.collection('sessions').deleteOne({ token });
+        return res.status(200).send('Logged out');
+    } catch (error) {
+        return res.status(500).send(error);
+    }
+});
+
+async function activeSession(token) {
+    const session = await db.collection('sessions').findOne({ token });
+    if (!session) {
+        return false;
+    }
+    const user = await db.collection('users').findOne({ _id: session.userId });
+    if (!user) {
+        return false;
+    }
+    return session;
+}
+
 app.post('/transactions', async (req, res) => {
     const { amount, description, type } = req.body;
-    const { userid } = req.headers;
+    const { authorization } = req.headers;
+    const token = authorization?.replace('Bearer ', '');
+
+    if (!token) {
+        return res.status(401).send('Unauthorized');
+    }
 
     const { value, error } = transactionSchema.validate({
         amount,
@@ -75,16 +109,16 @@ app.post('/transactions', async (req, res) => {
     if (error) {
         return res.status(400).send(error.details.map((err) => err.message));
     }
+
     try {
-        const user = await db
-            .collection('users')
-            .findOne({ _id: new ObjectId(userid) });
-        if (!user) {
-            return res.status(400).send('User does not exist');
+        const session = await activeSession(token);
+        if (!session) {
+            return res.status(401).send('Unauthorized');
         }
+
         await db.collection('transactions').insertOne({
             ...value,
-            user: new ObjectId(userid),
+            user: new ObjectId(session.userId),
             date: new Date().toLocaleDateString('pt-br', {
                 month: '2-digit',
                 day: '2-digit',
@@ -97,11 +131,22 @@ app.post('/transactions', async (req, res) => {
 });
 
 app.get('/transactions', async (req, res) => {
-    const { userid } = req.headers;
+    const { authorization } = req.headers;
+    const token = authorization?.replace('Bearer ', '');
+
+    if (!token) {
+        return res.status(401).send('Unauthorized');
+    }
+
     try {
+        const session = await activeSession(token);
+        if (!session) {
+            return res.status(401).send('Unauthorized');
+        }
+
         const transactions = await db
             .collection('transactions')
-            .find({ user: new ObjectId(userid) })
+            .find({ user: new ObjectId(session.userId) })
             .toArray();
         return res.status(200).send(transactions);
     } catch (error) {
@@ -112,7 +157,12 @@ app.get('/transactions', async (req, res) => {
 app.put('/transactions/:id', async (req, res) => {
     const { id } = req.params;
     const { amount, description, type } = req.body;
-    const { userid } = req.headers;
+    const { authorization } = req.headers;
+    const token = authorization?.replace('Bearer ', '');
+
+    if (!token) {
+        return res.status(401).send('Unauthorized');
+    }
 
     const { value, error } = transactionSchema.validate({
         amount,
@@ -122,17 +172,17 @@ app.put('/transactions/:id', async (req, res) => {
     if (error) {
         return res.status(400).send(error.details.map((err) => err.message));
     }
+
     try {
-        const user = await db
-            .collection('users')
-            .findOne({ _id: new ObjectId(userid) });
-        if (!user) {
-            return res.status(400).send('User does not exist');
+        const session = await activeSession(token);
+        if (!session) {
+            return res.status(401).send('Unauthorized');
         }
 
-        const transaction = await db
-            .collection('transactions')
-            .findOne({ _id: new ObjectId(id), user: new ObjectId(userid) });
+        const transaction = await db.collection('transactions').findOne({
+            _id: new ObjectId(id),
+            user: new ObjectId(session.userId),
+        });
         if (!transaction) {
             return res.status(400).send('Transaction does not exist');
         }
@@ -148,25 +198,28 @@ app.put('/transactions/:id', async (req, res) => {
         return res.status(200).send('Transaction updated');
     } catch (error) {
         return res.status(500).send(error);
-        console.log(error);
     }
 });
 
 app.delete('/transactions/:id', async (req, res) => {
     const { id } = req.params;
-    const { userid } = req.headers;
+    const { authorization } = req.headers;
+    const token = authorization?.replace('Bearer ', '');
+
+    if (!token) {
+        return res.status(401).send('Unauthorized');
+    }
 
     try {
-        const user = await db
-            .collection('users')
-            .findOne({ _id: new ObjectId(userid) });
-        if (!user) {
-            return res.status(400).send('User does not exist');
+        const session = await activeSession(token);
+        if (!session) {
+            return res.status(401).send('Unauthorized');
         }
 
-        const transaction = await db
-            .collection('transactions')
-            .findOne({ _id: new ObjectId(id), user: new ObjectId(userid) });
+        const transaction = await db.collection('transactions').findOne({
+            _id: new ObjectId(id),
+            user: new ObjectId(session.userId),
+        });
         if (!transaction) {
             return res.status(400).send('Transaction does not exist');
         }

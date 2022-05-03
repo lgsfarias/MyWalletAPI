@@ -152,4 +152,32 @@ app.put('/transactions/:id', async (req, res) => {
     }
 });
 
+app.delete('/transactions/:id', async (req, res) => {
+    const { id } = req.params;
+    const { userid } = req.headers;
+
+    try {
+        const user = await db
+            .collection('users')
+            .findOne({ _id: new ObjectId(userid) });
+        if (!user) {
+            return res.status(400).send('User does not exist');
+        }
+
+        const transaction = await db
+            .collection('transactions')
+            .findOne({ _id: new ObjectId(id), user: new ObjectId(userid) });
+        if (!transaction) {
+            return res.status(400).send('Transaction does not exist');
+        }
+
+        await db
+            .collection('transactions')
+            .deleteOne({ _id: new ObjectId(id) });
+        return res.status(200).send('Transaction deleted');
+    } catch (error) {
+        return res.status(500).send(error);
+    }
+});
+
 export default app;

@@ -42,4 +42,22 @@ app.post('/sing-up', async (req, res) => {
     }
 });
 
+app.post('/login', async (req, res) => {
+    const { email, password } = req.body;
+    const { value, error } = userLoginSchema.validate({ email, password });
+    if (error) {
+        return res.status(400).send(error.details.map((err) => err.message));
+    }
+    try {
+        const user = await db.collection('users').findOne({ email });
+        if (user && bcrypt.compareSync(password, user.password)) {
+            return res.sendStatus(200);
+        } else {
+            return res.status(401).send('Invalid email or password');
+        }
+    } catch (error) {
+        return res.status(500).send(error);
+    }
+});
+
 export default app;

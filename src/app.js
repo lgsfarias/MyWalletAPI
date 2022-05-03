@@ -1,6 +1,8 @@
 import connect from './config/dbConnect.js';
 import { userSignUpSchema, userLoginSchema } from './models/userSchema.js';
+import { transactionSchema } from './models/transactionSchema.js';
 
+import { ObjectId } from 'mongodb';
 import express, { json } from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
@@ -55,6 +57,37 @@ app.post('/login', async (req, res) => {
         } else {
             return res.status(401).send('Invalid email or password');
         }
+    } catch (error) {
+        return res.status(500).send(error);
+    }
+});
+
+app.post('/transactions', async (req, res) => {
+    const { amount, description, type } = req.body;
+    const { userid } = req.headers;
+
+    const { value, error } = transactionSchema.validate({
+        amount,
+        description,
+        type,
+    });
+    if (error) {
+        return res.status(400).send(error.details.map((err) => err.message));
+    }
+    try {
+        const user = await db
+            .collection('users')
+            .findOne({ _id: new ObjectId(userid) });
+        if (!user) {
+            return res.status(400).send('User does not exist');
+        }
+        await db.collection('transactions').insertOne({
+            amount,
+            description,
+            type,
+            user: new ObjectId(userid),
+        });
+        return res.status(200).send('Transaction created');
     } catch (error) {
         return res.status(500).send(error);
     }

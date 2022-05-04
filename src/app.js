@@ -1,4 +1,4 @@
-import connect from './config/dbConnect.js';
+import db from './config/dbConnect.js';
 import { userSignUpSchema, userLoginSchema } from './models/userSchema.js';
 import { transactionSchema } from './models/transactionSchema.js';
 
@@ -15,11 +15,7 @@ const app = express();
 app.use(json());
 app.use(cors());
 
-/* Conection with mongoDB */
-let db;
-connect().then((res) => (db = res));
-
-app.post('/sing-up', async (req, res) => {
+app.post('/signup', async (req, res) => {
     const { name, email, password, confirmPassword } = req.body;
     const { value, error } = userSignUpSchema.validate(
         { name, email, password, confirmPassword },
@@ -56,12 +52,21 @@ app.post('/login', async (req, res) => {
         const user = await db.collection('users').findOne({ email });
 
         if (user && bcrypt.compareSync(password, user.password)) {
+            const session = await db
+                .collection('sessions')
+                .findOne({ userId: user._id });
+            if (session) {
+                await db.collection('sessions').deleteMany({
+                    userId: new ObjectId(user._id),
+                });
+            }
+
             const token = uuid();
             await db.collection('sessions').insertOne({
                 userId: user._id,
                 token,
             });
-            return res.status(200).send(token);
+            return res.status(200).send({ token, name: user.name });
         } else {
             return res.status(401).send('Invalid email or password');
         }
@@ -71,7 +76,13 @@ app.post('/login', async (req, res) => {
 });
 
 app.post('/logout', async (req, res) => {
-    const { token } = req.body;
+    const { authorization } = req.headers;
+    const token = authorization?.replace('Bearer ', '');
+
+    if (!token) {
+        return res.status(401).send('Unauthorized');
+    }
+
     try {
         await db.collection('sessions').deleteOne({ token });
         return res.status(200).send('Logged out');

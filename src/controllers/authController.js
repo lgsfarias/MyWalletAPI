@@ -37,7 +37,10 @@ export default class Auth {
 
     static login = async (req, res) => {
         const { email, password } = req.body;
-        const { value, error } = userLoginSchema.validate({ email, password });
+        const { value, error } = userLoginSchema.validate(
+            { email, password },
+            { abortEarly: false }
+        );
         if (error) {
             return res
                 .status(400)

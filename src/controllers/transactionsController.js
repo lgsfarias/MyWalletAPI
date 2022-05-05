@@ -49,11 +49,14 @@ export default class Transactions {
             return res.status(401).send('Unauthorized');
         }
 
-        const { value, error } = transactionSchema.validate({
-            amount,
-            description,
-            type,
-        });
+        const { value, error } = transactionSchema.validate(
+            {
+                amount,
+                description,
+                type,
+            },
+            { abortEarly: false }
+        );
         if (error) {
             return res
                 .status(400)
@@ -90,11 +93,14 @@ export default class Transactions {
             return res.status(401).send('Unauthorized');
         }
 
-        const { value, error } = transactionSchema.validate({
-            amount,
-            description,
-            type,
-        });
+        const { value, error } = transactionSchema.validate(
+            {
+                amount,
+                description,
+                type,
+            },
+            { abortEarly: false }
+        );
         if (error) {
             return res
                 .status(400)

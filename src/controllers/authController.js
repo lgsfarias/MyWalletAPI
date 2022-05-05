@@ -85,4 +85,28 @@ export default class Auth {
             return res.status(500).send(error);
         }
     };
+
+    static isAuthenticated = async (req, res) => {
+        const { authorization } = req.headers;
+        const token = authorization?.replace('Bearer ', '');
+
+        if (!token) {
+            return res.status(401).send('Unauthorized');
+        }
+        try {
+            const session = await db.collection('sessions').findOne({ token });
+            if (!session) {
+                return res.status(401).send('Unauthorized');
+            }
+            const user = await db.collection('users').findOne({
+                _id: new ObjectId(session.userId),
+            });
+            if (!user) {
+                return res.status(401).send('Unauthorized');
+            }
+            return res.sendStatus(200);
+        } catch (error) {
+            return res.status(500).send(error);
+        }
+    };
 }

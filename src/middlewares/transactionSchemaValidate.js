@@ -3,7 +3,7 @@ import { transactionSchema } from '../models/transactionSchema.js';
 const transactionSchemaValidate = (req, res, next) => {
     const { amount, description, type } = req.body;
 
-    const { error } = transactionSchema.validate(
+    const { value, error } = transactionSchema.validate(
         {
             amount,
             description,
@@ -14,6 +14,7 @@ const transactionSchemaValidate = (req, res, next) => {
     if (error) {
         return res.status(400).send(error.details.map((err) => err.message));
     }
+    res.locals.value = value;
     next();
 };
 

@@ -19,6 +19,7 @@ const authValidate = async (req, res, next) => {
         if (!user) {
             return res.status(401).send('Unauthorized');
         }
+        res.locals.session = session;
     } catch (e) {
         return res.status(500).send(e);
     }

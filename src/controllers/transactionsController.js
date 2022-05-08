@@ -16,6 +16,7 @@ export default class Transactions {
                 date: new Date().toLocaleDateString('pt-br', {
                     month: '2-digit',
                     day: '2-digit',
+                    year: 'numeric',
                 }),
             });
             return res.status(200).send('Transaction created');

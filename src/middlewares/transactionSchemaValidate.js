@@ -1,4 +1,4 @@
-import { transactionSchema } from '../models/transactionSchema.js';
+import { transactionSchema } from '../schemas/transactionSchema.js';
 
 const transactionSchemaValidate = (req, res, next) => {
     const { amount, description, type } = req.body;

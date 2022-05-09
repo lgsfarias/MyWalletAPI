@@ -1,5 +1,5 @@
 import db from '../config/dbConnect.js';
-import { userSignUpSchema, userLoginSchema } from '../models/userSchema.js';
+import { userSignUpSchema, userLoginSchema } from '../schemas/userSchema.js';
 
 import { ObjectId } from 'mongodb';
 import bcrypt from 'bcrypt';

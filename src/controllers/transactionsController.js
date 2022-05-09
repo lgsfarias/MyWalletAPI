@@ -3,11 +3,15 @@ import { ObjectId } from 'mongodb';
 
 export default class Transactions {
     static create = async (req, res) => {
-        const { session } = res.locals;
-        const { transaction } = res.locals;
+        // const { amount, description, type } = req.body;
+        const { authorization } = req.headers;
+        const token = authorization?.replace('Bearer ', '');
+
         try {
+            const session = await db.collection('sessions').findOne({ token });
+
             await db.collection('transactions').insertOne({
-                ...transaction,
+                ...res.locals.value,
                 user: new ObjectId(session.userId),
                 date: new Date().toLocaleDateString('pt-br', {
                     month: '2-digit',
@@ -22,9 +26,12 @@ export default class Transactions {
     };
 
     static getAll = async (req, res) => {
-        const { session } = res.locals;
+        const { authorization } = req.headers;
+        const token = authorization?.replace('Bearer ', '');
 
         try {
+            const session = await db.collection('sessions').findOne({ token });
+
             const transactions = await db
                 .collection('transactions')
                 .find({ user: new ObjectId(session.userId) })
@@ -37,14 +44,14 @@ export default class Transactions {
 
     static update = async (req, res) => {
         const { id } = req.params;
-        const { transaction } = res.locals;
+        // const { amount, description, type } = req.body;
 
         try {
             await db.collection('transactions').updateOne(
                 { _id: new ObjectId(id) },
                 {
                     $set: {
-                        ...transaction,
+                        ...res.locals.value,
                     },
                 }
             );

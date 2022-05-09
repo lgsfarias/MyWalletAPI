@@ -1,4 +1,4 @@
-import { transactionSchema } from '../models/transactionSchema.js';
+import { transactionSchema } from '../schemas/transactionSchema.js';
 
 const transactionSchemaValidate = (req, res, next) => {
     const { amount, description, type } = req.body;
@@ -14,7 +14,7 @@ const transactionSchemaValidate = (req, res, next) => {
     if (error) {
         return res.status(400).send(error.details.map((err) => err.message));
     }
-    res.locals.value = value;
+    res.locals.transaction = value;
     next();
 };
 
